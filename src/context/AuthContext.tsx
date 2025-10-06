@@ -5,7 +5,7 @@ import React, {
   useEffect,
   useState,
 } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 import type {
   AuthContextValue,
@@ -13,61 +13,79 @@ import type {
   AuthUser,
 } from '@/types/context/auth';
 
+import { auth } from '@/services/firebase';
+
+import { useToast } from './ToastContext';
+
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const {
-    user: rawUser,
-    isAuthenticated,
-    isLoading,
-    getAccessTokenSilently,
-    logout: auth0Logout,
-  } = useAuth0();
-
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
-
-  const mapUser = (u: typeof rawUser): AuthUser | null => {
-    if (!u) return null;
-    const id = (u as { sub?: string } | null)?.sub ?? 'unknown';
-    const picture = (u as { picture?: string } | null)?.picture ?? null;
-    return {
-      id,
-      email: u.email,
-      name: u.name,
-      picture,
-    };
-  };
-
-  const fetchToken = useCallback(async () => {
-    try {
-      const t = await getAccessTokenSilently();
-      setToken(t || null);
-      return t || null;
-    } catch {
-      setToken(null);
-      return null;
-    }
-  }, [getAccessTokenSilently]);
+  const { notify } = useToast();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchToken();
-    } else {
-      setToken(null);
-    }
-  }, [isAuthenticated, fetchToken]);
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
+        const idToken = await firebaseUser.getIdToken();
+        setUser({
+          id: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: firebaseUser.displayName,
+          picture: firebaseUser.photoURL,
+        });
+        setToken(idToken);
+      } else {
+        setUser(null);
+        setToken(null);
+      }
+      setLoading(false);
+    });
 
-  const logout = useCallback(async () => {
-    auth0Logout({ logoutParams: { returnTo: window.location.origin } });
-  }, [auth0Logout]);
+    return unsubscribe;
+  }, []);
+
+  const getToken = useCallback(async () => {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const idToken = await currentUser.getIdToken();
+      return idToken;
+    }
+    return null;
+  }, []);
+
+  const signIn = useCallback(async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      if (error instanceof Error) {
+        notify({ message: `Error de inicio de sesión: ${error.message}`, level: 'danger' });
+      }
+      console.error("Login failed", error);
+    }
+  }, [notify]);
+
+  const signOut = useCallback(async () => {
+    try {
+      await auth.signOut();
+    } catch (error) {
+       if (error instanceof Error) {
+        notify({ message: `Error de cierre de sesión: ${error.message}`, level: 'danger' });
+      }
+      console.error("Logout failed", error);
+    }
+  }, [notify]);
 
   const value: AuthContextValue = {
-    user: mapUser(rawUser),
-    isAuthenticated: !!isAuthenticated,
-    loading: isLoading,
+    user,
+    isAuthenticated: !!user,
+    loading,
     token,
-    getToken: fetchToken,
-    logout,
+    getToken,
+    signIn,
+    signOut,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

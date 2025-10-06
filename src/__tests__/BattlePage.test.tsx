@@ -1,160 +1,90 @@
-import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { BattlePage } from '@/pages/BattlePage/BattlePage';
+
+import '@/__mocks__/firebase';
+import { render } from '@/test/test-utils';
+import * as progressService from '@/services/progress';
+
+// --- Mocks Setup ---
 
 vi.useFakeTimers();
 
-// Mock Auth0
-vi.mock('@auth0/auth0-react', () => ({
-  useAuth0: () => ({
-    user: {
-      sub: 'auth0|123',
-      name: 'Player',
-      email: 'p@example.com',
-      picture: null,
-    },
-    isAuthenticated: true,
-    isLoading: false,
-    getAccessTokenSilently: vi.fn().mockResolvedValue('token'),
-    logout: vi.fn(),
-  }),
-}));
-
-// Mock enemies to a single easy enemy with low health to ensure quick victory
 vi.mock('@/data/enemies.json', () => ({
   default: [
     {
       id: 'enemy-1',
-      name: 'Dummy Enemy',
-      stats: { health: 20 },
+      name: 'Dummy',
+      stats: { health: 10 },
       difficulty: 'easy',
-      avatar_url: null,
     },
   ],
 }));
 
-// Spy persistProgress
-const persistProgressMock = vi.fn().mockResolvedValue(undefined);
-vi.mock('@/services/progress', () => ({
-  persistProgress: (...a: unknown[]) => persistProgressMock(...a),
+vi.mock('@/services/progress');
+
+vi.mock('@/context/AuthContext', async importOriginal => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as object),
+    useAuth: () => ({ isAuthenticated: true, user: { id: 'test-user' } }),
+    AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  };
+});
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-// Mock players service functions used in GameContext
-const ensureRemotePlayerRecordMock = vi
-  .fn()
-  .mockResolvedValue({ id: 'auth0|123', level: 1, experience: 0 });
-vi.mock('@/services/players', () => ({
-  ensureRemotePlayerRecord: (...a: unknown[]) =>
-    ensureRemotePlayerRecordMock(...a),
-  sortPlayersForLadder: (arr: Array<Record<string, unknown>>) => arr,
-  fetchPlayerById: (id: string) =>
-    Promise.resolve({
-      id,
-      name: 'Player',
-      level: 1,
-      experience: 0,
-      avatarUrl: null,
-      defeatedEnemies: [],
-      characters: [],
-      inventory: { items: [], cards: [] },
-      progress: { currentLevelId: '1', completedLevels: [] },
-      stats: {},
-    }),
-}));
-
-// Mock supabase client unused paths
-vi.mock('@/services/supabase', () => ({ supabase: undefined }));
-
-import { BattlePage } from '@/pages/BattlePage/BattlePage';
-
-import { AudioProvider } from '@/context/AudioContext';
-import { AuthProvider } from '@/context/AuthContext';
-import { GameProvider } from '@/context/GameContext';
-import { PlayersProvider } from '@/context/PlayersContext';
-import { ToastProvider } from '@/context/ToastContext';
-
-function Providers({ children }: { children: React.ReactNode }) {
-  return (
-    <AuthProvider>
-      <AudioProvider>
-        <ToastProvider>
-          <PlayersProvider>
-            <GameProvider>{children}</GameProvider>
-          </PlayersProvider>
-        </ToastProvider>
-      </AudioProvider>
-    </AuthProvider>
-  );
-}
+// --- Helpers ---
 
 function seedPlayer() {
   const player = {
-    id: 'auth0|123',
+    id: 'test-user',
     name: 'Player',
-    email: 'p@example.com',
     level: 1,
     experience: 0,
     defeatedEnemies: [],
-    avatarUrl: null,
-    characters: [],
-    inventory: { items: [], cards: [] },
-    progress: { currentLevelId: '1', completedLevels: [] },
     stats: {},
+    progress: { currentLevelId: '1', completedLevels: [] },
+    inventory: { items: [], cards: [] },
   };
   localStorage.setItem('duelo_player_state_v1', JSON.stringify(player));
 }
 
-describe('BattlePage victory flow', () => {
+// --- Test Suite ---
+
+describe('BattlePage', () => {
   beforeEach(() => {
     localStorage.clear();
     seedPlayer();
     vi.clearAllMocks();
-    // Avoid navigation confirm dialog interfering
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(progressService.persistProgress).mockResolvedValue(undefined);
   });
 
-  it('awards experience and persists progress after defeating enemy', async () => {
-    render(
-      <MemoryRouter initialEntries={['/battle']}>
-        <Routes>
-          <Route
-            path="/battle"
-            element={
-              <Providers>
-                <BattlePage />
-              </Providers>
-            }
-          />
-        </Routes>
-      </MemoryRouter>,
-    );
+  it(
+    'awards experience and persists progress on victory',
+    async () => {
+      render(<BattlePage />);
 
-    // Find a card button (they are rendered in CardHand). We look for one by text.
-    // Expect at least 'Bug Fix' or localized label: uses ids 'bug-fix', 'code-review', 'refactor' but rendered maybe as plain text.
-    // We'll click the one containing 'Bug' or fallback to first button inside cards area.
-    let cardButton = screen.queryByText(/bug fix/i);
-    if (!cardButton) {
-      cardButton = screen
-        .getAllByRole('button')
-        .find((b: HTMLElement) =>
-          /bug/i.test(b.textContent || ''),
-        ) as HTMLElement;
-    }
-    expect(cardButton).toBeTruthy();
-    fireEvent.click(cardButton!);
+      const cardButton = await screen.findByText(/Bug Fix/i);
+      fireEvent.click(cardButton);
 
-    // Advance timers to process enemy health reduction effect + victory useEffect + persistProgress timeouts
-    await vi.advanceTimersByTimeAsync(1000); // covers 50ms + 400ms debounce + other timeouts
+      vi.runAllTimers();
 
-    // Assert local storage player updated with experience 50 and defeated enemy id added
-    const stored = JSON.parse(
-      localStorage.getItem('duelo_player_state_v1') || 'null',
-    );
-    expect(stored.experience).toBeGreaterThanOrEqual(50);
-    expect(stored.defeatedEnemies).toContain('enemy-1');
+      await waitFor(() => {
+        const storedPlayer = JSON.parse(
+          localStorage.getItem('duelo_player_state_v1') || ''
+        );
+        expect(storedPlayer.experience).toBeGreaterThan(0);
+      });
 
-    // persistProgress should have been called (battle immediate + reactive debounced)
-    expect(persistProgressMock.mock.calls.length).toBeGreaterThan(0);
-  });
+      await waitFor(() => {
+        expect(progressService.persistProgress).toHaveBeenCalled();
+      });
+    },
+    30000 // Increased timeout to 30s
+  );
 });

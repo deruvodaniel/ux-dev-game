@@ -5,10 +5,8 @@ import type { CharacterCardProps } from '@/types/components-character-card';
 
 import { StatusBar } from '@/components/atoms/StatusBar/StatusBar';
 
-import { useAuth } from '@/context/AuthContext';
 import { useGame } from '@/context/GameContext';
 import { useModal } from '@/context/ModalContext';
-import { resolvePlayerAvatar } from '@/services/avatarResolve';
 
 import styles from './CharacterCard.module.css';
 
@@ -26,14 +24,9 @@ export const CharacterCard = ({
     .join('')
     .toUpperCase();
 
-  const auth = useAuth();
   const { t } = useTranslation();
-  const derivedAvatarUrl = resolvePlayerAvatar({
-    avatarUrl: character.avatarUrl,
-    avatarPath: (character as { avatarPath?: string | null }).avatarPath,
-    legacyAvatar: (character as { avatar?: string | null }).avatar,
-    authPicture: auth?.user?.picture || null,
-  });
+  const derivedAvatarUrl =
+    character.avatarUrl || (character as { avatar?: string }).avatar;
 
   const { showModal } = useModal();
   const { state } = useGame();

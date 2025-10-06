@@ -1,0 +1,16 @@
+.counter {
+  display: flex;
+  gap: 1rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 2px black;
+}
+
+.wins {
+  color: #4caf50; /* Green */
+}
+
+.losses {
+  color: #f44336; /* Red */
+}

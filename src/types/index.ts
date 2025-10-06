@@ -14,7 +14,6 @@ export * from './components/components-avatar-uploader';
 export * from './components/components-card';
 export * from './components/components-character-card';
 export * from './components/components-character-list';
-export * from './components/components-code-card';
 export * from './components/components-damage-number';
 export * from './components/components-layout';
 export * from './components/components-player-card';
@@ -24,6 +23,7 @@ export * from './components/components-settings';
 export * from './components/components-stat-display';
 export * from './components/components-turn-indicator';
 export * from './components/components-typography';
+export * from './components/components-win-loss-counter';
 export * from './components/header';
 export * from './components/ladderboard';
 

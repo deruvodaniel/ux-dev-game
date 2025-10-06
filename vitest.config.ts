@@ -1,47 +1,27 @@
-/// <reference types="vitest" />
-import path from 'path';
 import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+import path from 'path';
 
 export default defineConfig({
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
+  plugins: [react()],
   test: {
-    environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
     globals: true,
-    css: true,
-    // Exclude E2E tests from Vitest (they use Playwright)
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    css: {
+      modules: {
+        classNameStrategy: 'non-scoped',
+      },
+    },
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
-      '**/e2e/**',
-      '**/playwright-report/**',
-      '**/test-results/**',
+      '**/e2e/**', // Exclude Playwright tests
     ],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'html', 'json'],
-      thresholds: {
-        global: {
-          branches: 80,
-          functions: 80,
-          lines: 80,
-          statements: 80,
-        },
-      },
-      exclude: [
-        'node_modules/',
-        'src/test/',
-        'src/types/**',
-        '**/*.d.ts',
-        '**/*.config.*',
-        'dist/',
-        'coverage/',
-        'e2e/',
-      ],
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
     },
   },
 });

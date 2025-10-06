@@ -145,6 +145,8 @@ const resources = {
       'ladderboard.couldNotLoad': 'No se pudo cargar el ranking',
 
       // Stats labels
+      'stats.wins': 'Victorias',
+      'stats.losses': 'Derrotas',
       'stats.battlesWon': 'Batallas Ganadas',
       'stats.battlesLost': 'Batallas Perdidas',
       'stats.damageDealt': 'Daño Infligido',
@@ -308,6 +310,8 @@ const resources = {
       'ladderboard.couldNotLoad': 'Could not load ranking',
 
       // Stats labels
+      'stats.wins': 'Wins',
+      'stats.losses': 'Losses',
       'stats.battlesWon': 'Battles Won',
       'stats.battlesLost': 'Battles Lost',
       'stats.damageDealt': 'Damage Dealt',

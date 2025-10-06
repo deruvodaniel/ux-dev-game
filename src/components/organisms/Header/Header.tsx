@@ -9,7 +9,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useGame } from '@/context/GameContext';
 import { useModal } from '@/context/ModalContext';
 import { useLoadPlayerProfile } from '@/hooks/useLoadPlayerProfile';
-import { resolvePlayerAvatar } from '@/services/avatarResolve';
 
 import styles from './Header.module.css';
 
@@ -35,36 +34,29 @@ export const Header: React.FC = () => {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [profile, setProfile] = React.useState<PlayerProfile | null>(null);
   const wasLoggedRef = React.useRef<boolean>(false);
-  // Using Auth0 now; Supabase auth removed. Load profile only if we have player email in state.
-  const playerEmail = player?.email as string | undefined;
-  const { profile: loadedProfile } = useLoadPlayerProfile(playerEmail);
-  const isLoggedIn = auth.isAuthenticated && !!player;
+  // Using Firebase Auth now. Load profile only if we have player id in state.
+  const { profile: loadedProfile } = useLoadPlayerProfile(player?.id);
+  const isLoggedIn = auth.user && !!player;
 
   // Removed automatic redirect to /profile to avoid unwanted navigation.
   React.useEffect(() => {
     // still close any open modal on first auth
-    if (!wasLoggedRef.current && auth.isAuthenticated) {
+    if (!wasLoggedRef.current && auth.user) {
       try {
         hideModal();
       } catch {
         /* ignore */
       }
     }
-    wasLoggedRef.current = auth.isAuthenticated;
-  }, [auth.isAuthenticated, hideModal]);
+    wasLoggedRef.current = !!auth.user;
+  }, [auth.user, hideModal]);
 
   // sync profile from loader
   React.useEffect(() => {
     if (loadedProfile) {
       const mapped: PlayerProfile = {
-        name:
-          (loadedProfile as unknown as { name?: string | null }).name ??
-          player?.name ??
-          'Sin nombre',
-        level:
-          (loadedProfile as unknown as { level?: number | null }).level ??
-          player?.level ??
-          1,
+        name: loadedProfile.name ?? player?.name ?? 'Sin nombre',
+        level: loadedProfile.level ?? player?.level ?? 1,
       };
       setProfile(mapped);
     }
@@ -78,14 +70,7 @@ export const Header: React.FC = () => {
 
   // logout handled inside AuthButton + UserMenu component
 
-  const effectiveAvatarUrl = React.useMemo(
-    () =>
-      resolvePlayerAvatar({
-        avatarUrl: player?.avatarUrl || null,
-        authPicture: auth.user?.picture || null,
-      }),
-    [player?.avatarUrl, auth.user?.picture],
-  );
+  const effectiveAvatarUrl = player?.avatarUrl || auth.user?.photoURL;
 
   return (
     <header className={styles.header} data-testid="header">
@@ -153,7 +138,7 @@ export const Header: React.FC = () => {
               triggerRef={avatarRef}
               level={profile?.level ?? player?.level ?? 1}
               name={profile?.name ?? player?.name ?? 'Sin nombre'}
-              avatarUrl={effectiveAvatarUrl}
+              avatarUrl={effectiveAvatarUrl ?? undefined}
             />
           </div>
         </div>

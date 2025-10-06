@@ -3,25 +3,18 @@ import type { PlayerCardProps } from '@/types/components-player-card';
 import { Skeleton } from '@/components/atoms/Skeleton/Skeleton';
 import { StatusBar } from '@/components/atoms/StatusBar/StatusBar';
 
-import { resolvePlayerAvatar } from '@/services/avatarResolve';
-
 import styles from './PlayerCard.module.css';
 
 export const PlayerCard = ({
   name,
   avatarUrl,
-  avatarPath, // allow optional avatarPath if parent passes it
   level = 1,
   health = 100,
   stamina = 100,
   isActive = false,
   variant = 'player',
   syncing = false,
-}: PlayerCardProps & { avatarPath?: string | null; syncing?: boolean }) => {
-  const resolvedAvatar = resolvePlayerAvatar({
-    avatarUrl,
-    avatarPath: avatarPath || null,
-  });
+}: PlayerCardProps & { syncing?: boolean }) => {
   if (syncing) {
     return (
       <div className={`${styles.card} ${styles.syncing}`} aria-busy>
@@ -48,9 +41,9 @@ export const PlayerCard = ({
     >
       <div className={styles.top}>
         <div className={styles.avatar}>
-          {resolvedAvatar ? (
+          {avatarUrl ? (
             <img
-              src={resolvedAvatar}
+              src={avatarUrl}
               alt={`${name} avatar`}
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).style.display = 'none';
