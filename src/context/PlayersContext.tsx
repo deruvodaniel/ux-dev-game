@@ -1,9 +1,21 @@
-import type { Player, PlayerId, PlayerWithId } from '@/types';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { fetchPlayers, sortPlayersForLadder } from '@/services/players';
 
-import { fetchPlayerById, fetchPlayers, sortPlayersForLadder } from '@/services/players';
 import { useAuth } from './AuthContext';
+
+import type { Player } from '@/types';
+
+// Definimos los tipos localmente ya que no existen en el barrel export
+type PlayerId = string;
+type PlayerWithId = Player & { id: string };
 
 interface PlayersState {
   players: PlayerWithId[];
@@ -29,36 +41,48 @@ const initialState: PlayersState = {
   lastUpdated: null,
 };
 
-export const PlayersProvider = ({ children }: { children: React.ReactNode }) => {
+export const PlayersProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const { user } = useAuth();
   const [state, setState] = useState<PlayersState>(initialState);
 
-  const refreshLadder = useCallback(async (force = false) => {
-    if (state.inFlight) return;
+  const refreshLadder = useCallback(
+    async (force = false) => {
+      if (state.inFlight) return;
 
-    const now = Date.now();
-    const stale = !state.lastUpdated || now - state.lastUpdated > 30000; // 30s TTL
+      const now = Date.now();
+      const stale = !state.lastUpdated || now - state.lastUpdated > 30000; // 30s TTL
 
-    if (!stale && !force) return;
+      if (!stale && !force) return;
 
-    setState(s => ({ ...s, loading: true, inFlight: true }));
+      setState((s) => ({ ...s, loading: true, inFlight: true }));
 
-    try {
-      const remotePlayers = await fetchPlayers();
-      const sorted = sortPlayersForLadder(remotePlayers);
+      try {
+        const remotePlayers = await fetchPlayers();
+        const sorted = sortPlayersForLadder(remotePlayers);
 
-      setState(s => ({
-        ...s,
-        players: sorted,
-        loading: false,
-        error: null,
-        inFlight: false,
-        lastUpdated: now,
-      }));
-    } catch (e) {
-      setState(s => ({ ...s, error: e as Error, loading: false, inFlight: false }));
-    }
-  }, [state.inFlight, state.lastUpdated]);
+        setState((s) => ({
+          ...s,
+          players: sorted,
+          loading: false,
+          error: null,
+          inFlight: false,
+          lastUpdated: now,
+        }));
+      } catch (e) {
+        setState((s) => ({
+          ...s,
+          error: e as Error,
+          loading: false,
+          inFlight: false,
+        }));
+      }
+    },
+    [state.inFlight, state.lastUpdated],
+  );
 
   useEffect(() => {
     refreshLadder();
@@ -78,18 +102,26 @@ export const PlayersProvider = ({ children }: { children: React.ReactNode }) => 
     });
   }, []);
 
-  const getPlayerById = useCallback((id: PlayerId) => {
-    return state.players.find(p => p.id === id);
-  }, [state.players]);
+  const getPlayerById = useCallback(
+    (id: PlayerId) => {
+      return state.players.find((p) => p.id === id);
+    },
+    [state.players],
+  );
 
-  const value = useMemo(() => ({
-    ...state,
-    refreshLadder,
-    updatePlayer,
-    getPlayerById,
-  }), [state, refreshLadder, updatePlayer, getPlayerById]);
+  const value = useMemo(
+    () => ({
+      ...state,
+      refreshLadder,
+      updatePlayer,
+      getPlayerById,
+    }),
+    [state, refreshLadder, updatePlayer, getPlayerById],
+  );
 
-  return <PlayersContext.Provider value={value}>{children}</PlayersContext.Provider>;
+  return (
+    <PlayersContext.Provider value={value}>{children}</PlayersContext.Provider>
+  );
 };
 
 export const usePlayers = () => {
@@ -99,3 +131,6 @@ export const usePlayers = () => {
   }
   return context;
 };
+
+// Alias para compatibilidad
+export const usePlayersContext = usePlayers;

@@ -23,3 +23,6 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 export { app, auth, db, storage };
+
+// Alias para compatibilidad
+export const firestore = db;
