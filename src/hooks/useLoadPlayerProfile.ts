@@ -1,41 +1,29 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useGame } from '@/context/GameContext';
-import { supabase } from '@/services/supabase';
+import { fetchPlayerById } from '@/services/players';
 
-interface PlayerRow {
-  id: string;
-  name?: string | null;
-  email?: string | null;
-  level?: number | null;
-  avatar_url?: string | null;
-  avatarUrl?: string | null; // legacy/local field
-}
+import type { Player } from '@/types';
 
-export const useLoadPlayerProfile = (email: string | null | undefined) => {
-  const { state, dispatch } = useGame();
-  const [profile, setProfile] = useState<PlayerRow | null>(null);
+export const useLoadPlayerProfile = (userId: string | null | undefined) => {
+  const { dispatch } = useGame();
+  const [profile, setProfile] = useState<Player | null>(null);
   const [loading, setLoading] = useState(false);
   const loadedRef = useRef(false);
 
   useEffect(() => {
-    if (!email || loadedRef.current || !supabase) return;
+    if (!userId || loadedRef.current) return;
     let active = true;
     (async () => {
       setLoading(true);
       try {
-        const { data: p } = await supabase
-          .from('players')
-          .select('*')
-          .eq('email', email)
-          .limit(1)
-          .single();
+        const p = await fetchPlayerById(userId);
         if (!active) return;
         if (p) {
           setProfile(p);
           dispatch({
             type: 'UPDATE_PLAYER_DATA',
-            payload: { name: p.name ?? state.player?.name ?? '' },
+            payload: { name: p.name ?? '' },
           });
         }
       } finally {
@@ -46,7 +34,7 @@ export const useLoadPlayerProfile = (email: string | null | undefined) => {
     return () => {
       active = false;
     };
-  }, [email, dispatch, state.player]);
+  }, [userId, dispatch]);
 
   return { profile, loading };
 };

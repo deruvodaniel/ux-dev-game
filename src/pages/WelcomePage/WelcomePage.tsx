@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,12 +14,17 @@ import { useToast } from '@/context/ToastContext';
 import styles from './WelcomePage.module.css';
 
 export const WelcomePage = () => {
+  const [videoFinished, setVideoFinished] = useState(false);
   const { state: gameState } = useGame();
   const auth = useAuth();
   const player = gameState.player;
   const navigate = useNavigate();
   const { notify } = useToast();
   const { t } = useTranslation();
+
+  const handleVideoEnd = () => {
+    setVideoFinished(true);
+  };
 
   const goToDashboard = () => {
     if (!auth.isAuthenticated) {
@@ -35,55 +41,70 @@ export const WelcomePage = () => {
 
   return (
     <div className={styles.page} data-testid="welcome-page">
-      <main className={styles.container} data-testid="welcome-main">
-        <section
-          className={`${styles.intro} ${styles.hero}`}
-          data-testid="hero-section"
+      {!videoFinished ? (
+        <video
+          className={styles.introVideo}
+          src="/img/video-intro.mp4"
+          autoPlay
+          muted
+          playsInline
+          onEnded={handleVideoEnd}
+          data-testid="intro-video"
+        />
+      ) : (
+        <main
+          className={`${styles.container} ${styles.contentFadeIn}`}
+          data-testid="welcome-main"
         >
-          <div className={styles.heroRight}>
-            <div className={styles.finalMonsterWrap}>
-              <img
-                className={styles.finalMonster}
-                src="https://i.pinimg.com/736x/ab/25/f6/ab25f694780cc113fd8fd7814857afe3.jpg"
-                alt="Monstruo IA Final"
-                data-testid="hero-monster-image"
-              />
-            </div>
-          </div>
-
-          <div className={styles.heroLeft}>
-            <Heading
-              level="h1"
-              className={styles.title}
-              data-testid="welcome-title"
-            >
-              {t('welcome.title')}
-            </Heading>
-            <Text className={styles.mission} data-testid="welcome-subtitle">
-              {t('welcome.subtitle')}
-            </Text>
-
-            <div className={styles.heroActions} data-testid="hero-actions">
-              <div className={styles.heroButtonsRight}>
-                {isLoggedIn ? (
-                  <Button
-                    onClick={goToDashboard}
-                    className={styles.primaryLarge}
-                    ariaLabel={t('welcome.getStarted')}
-                    data-testid="get-started-button"
-                  >
-                    {t('welcome.getStarted')}
-                  </Button>
-                ) : (
-                  <div data-testid="auth-button-container">
-                    <AuthButton />
-                  </div>
-                )}
+          <section
+            className={`${styles.intro} ${styles.hero}`}
+            data-testid="hero-section"
+          >
+            <div className={styles.heroRight}>
+              <div className={styles.finalMonsterWrap}>
+                <img
+                  className={styles.finalMonster}
+                  src="https://i.pinimg.com/736x/ab/25/f6/ab25f694780cc113fd8fd7814857afe3.jpg"
+                  alt="Monstruo IA Final"
+                  data-testid="hero-monster-image"
+                />
               </div>
             </div>
-          </div>
-        </section>
-      </main>
+
+            <div className={styles.heroLeft}>
+              <Heading
+                level="h1"
+                className={styles.title}
+                data-testid="welcome-title"
+              >
+                {t('welcome.title')}
+              </Heading>
+              <Text className={styles.mission} data-testid="welcome-subtitle">
+                {t('welcome.subtitle')}
+              </Text>
+
+              <div className={styles.heroActions} data-testid="hero-actions">
+                <div className={styles.heroButtonsRight}>
+                  {isLoggedIn ? (
+                    <Button
+                      onClick={goToDashboard}
+                      className={styles.primaryLarge}
+                      ariaLabel={t('welcome.getStarted')}
+                      data-testid="get-started-button"
+                    >
+                      {t('welcome.getStarted')}
+                    </Button>
+                  ) : (
+                    <div data-testid="auth-button-container">
+                      <AuthButton />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      )}
     </div>
   );
 };

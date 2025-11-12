@@ -1,42 +1,33 @@
-import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AuthButton } from '@/components/organisms/AuthButton/AuthButton';
+import { render } from '@/test/test-utils';
 
-import { AuthProvider } from '@/context/AuthContext';
-import { GameProvider } from '@/context/GameContext';
+import '@/__mocks__/firebase'; // Import the global mock
+import * as AuthContext from '@/context/AuthContext';
 
-// Mock auth0-react hook
-vi.mock('@auth0/auth0-react', () => {
-  return {
-    useAuth0: () => ({
-      loginWithPopup: vi.fn(),
-      loginWithRedirect: vi.fn(),
-      logout: vi.fn(),
-      user: { name: 'Tester', picture: 'http://pic' },
-      getAccessTokenSilently: vi.fn(),
-      isAuthenticated: true,
-    }),
-  };
-});
+// --- Mocks Setup ---
 
-// Wrap with GameProvider because component dispatches CLEAR_USER on logout
-function renderWithProviders(ui: React.ReactElement) {
-  return render(
-    <AuthProvider>
-      <GameProvider>{ui}</GameProvider>
-    </AuthProvider>,
-  );
-}
+const logoutMock = vi.fn();
+vi.spyOn(AuthContext, 'useAuth').mockReturnValue({
+  isAuthenticated: true,
+  user: { name: 'Tester', picture: 'http://pic.com/pic.jpg', id: 'test-user' },
+  logout: logoutMock,
+  loginWithRedirect: vi.fn(),
+} as any);
+
+// --- Test Suite ---
 
 describe('AuthButton', () => {
-  it('renders logout button when authenticated and triggers logout', () => {
-    renderWithProviders(<AuthButton />);
-    const btn = screen.getByRole('button', { name: /cerrar/i });
-    expect(btn).toBeInTheDocument();
+  it('renders logout button when authenticated and triggers logout', async () => {
+    render(<AuthButton />);
+    const btn = await screen.findByRole('button', { name: /Cerrar sesión/i });
+
     fireEvent.click(btn);
-    // If no error thrown, dispatch path executed. Full verification would require exporting reducer or spying storage.
-    expect(localStorage.getItem('duelo_player_state_v1')).toBeNull();
+
+    await waitFor(() => {
+      expect(logoutMock).toHaveBeenCalled();
+    });
   });
 });

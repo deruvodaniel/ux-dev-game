@@ -14,12 +14,7 @@ import { useGame } from '@/context/GameContext';
 import { usePlayersContext } from '@/context/PlayersContext';
 import { useToast } from '@/context/ToastContext';
 
-import { publicAvatarUrlFor, uploadAvatar } from '@/services/avatars';
-import {
-  savePlayer,
-  updatePlayerAvatar,
-  updatePlayerProfile,
-} from '@/services/players';
+import { updatePlayerProfile } from '@/services/players';
 
 import styles from './ProfileSetupPage.module.css';
 
@@ -29,123 +24,99 @@ export const ProfileSetupPage = () => {
   const navigate = useNavigate();
   const { notify } = useToast();
   const { t } = useTranslation();
-  const { updatePlayer, syncPlayer, syncing } = usePlayersContext();
-  const syncingThis = player?.id ? syncing(player.id) : false;
+  const { updatePlayer, syncing } = usePlayersContext();
   const userId = player?.id ?? null;
+
+  // Component State
   const [email, setEmail] = useState<string>(player?.email ?? '');
   const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(
     null,
   );
+  const [isSaving, setIsSaving] = useState(false);
 
+  // Effect to sync local email state if player context changes
   useEffect(() => {
     setEmail(player?.email ?? '');
   }, [player?.email]);
 
-  async function saveProfile() {
-    try {
-      if (!userId || !player) {
-        notify({ message: 'Usuario no identificado.', level: 'danger' });
-        return;
-      }
-      // Subir avatar primero si hay archivo nuevo
-      let avatarFailed = false;
-      if (selectedAvatarFile) {
-        try {
-          const storagePath = await uploadAvatar(selectedAvatarFile, userId);
-          const fullUrl = publicAvatarUrlFor(storagePath) || storagePath;
-          // Persist y actualizar estado con URL final (convención unificada)
-          await updatePlayerAvatar(userId, fullUrl);
-          gameDispatch({ type: 'SET_AVATAR', payload: fullUrl });
-          // Actualizar cache global (ladder/dashboard) inmediatamente
-          updatePlayer(userId, { avatarUrl: fullUrl });
-        } catch (upErr: unknown) {
-          notify({
-            message: 'Error subiendo avatar: ' + (upErr as Error)?.message,
-            level: 'danger',
-          });
-          avatarFailed = true;
-        }
-      }
+  const handleSaveProfile = async () => {
+    if (!userId || !player) {
+      notify({ message: t('profile.error.noUser'), level: 'danger' });
+      return;
+    }
+    if (isSaving) return; // Prevent duplicate submissions
 
-      await updatePlayerProfile(userId, {
+    setIsSaving(true);
+    try {
+      // This single function now handles avatar upload and Firestore update
+      const newAvatarUrl = await updatePlayerProfile(userId, {
         name: player.name,
         email: email || null,
-        avatarUrl: gameState.player?.avatarUrl || null,
+        avatarFile: selectedAvatarFile,
       });
+
+      // Prepare payload for local context updates
+      const updatedPlayerData: Partial<Player> = {
+        name: player.name,
+        email: email || null,
+      };
+
+      if (newAvatarUrl) {
+        updatedPlayerData.avatarUrl = newAvatarUrl;
+      }
+
+      // Update the local GameContext which drives this page's UI
       gameDispatch({
         type: 'UPDATE_PLAYER_DATA',
-        payload: { name: player.name || '', email: email || null },
+        payload: updatedPlayerData,
       });
-      updatePlayer(userId, {
-        name: player.name || email || userId || 'Player',
-        email: email || null,
+
+      // Update the global PlayersContext for other parts of the app (e.g., Ladder)
+      updatePlayer(userId, updatedPlayerData);
+
+      notify({
+        message: t('profile.success.updated', 'Profile updated successfully.'),
+        level: 'success',
       });
-      try {
-        const ladderPlayer: Player = {
-          id: userId,
-          name: player.name || email || userId || 'Player',
-          avatarUrl: player.avatarUrl ?? null,
-          level: player.level ?? 1,
-          experience: player.experience ?? 0,
-          characters: player.characters ?? [],
-          inventory: player.inventory ?? { items: [], cards: [] },
-          progress: player.progress ?? {
-            currentLevelId: '1',
-            completedLevels: [],
-          },
-          email: email || null,
-        } as Player;
-        await savePlayer(ladderPlayer);
-      } catch {
-        /* ignore */
-      }
-      if (!avatarFailed) {
-        notify({
-          message: 'Perfil actualizado correctamente.',
-          level: 'success',
-        });
-      } else {
-        notify({
-          message:
-            'Perfil guardado (avatar pendiente). Puedes reintentar subirlo más tarde.',
-          level: 'warning',
-        });
-      }
-      // Force sync from backend (if possible) so dashboard/ladder show canonical stats
-      if (userId) {
-        void syncPlayer(userId);
-      }
+
       navigate('/ladder');
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);
-      notify({ message: msg || 'Error actualizando perfil.', level: 'danger' });
+      notify({
+        message: msg || t('profile.error.generic', 'Error updating profile.'),
+        level: 'danger',
+      });
+    } finally {
+      setIsSaving(false);
     }
-  }
-
-  // removed supabase auth user fetch effect
+  };
 
   const handleFileSelected = (file: File) => {
     setSelectedAvatarFile(file);
   };
 
+  const isSyncing = player?.id ? syncing(player.id) : false;
+
   return (
     <div className={styles.page}>
       <main className={styles.card}>
         <Heading level="h1" className={styles.title}>
-          {t('profile.setup')}
+          {t('profile.setup', 'Profile Setup')}
         </Heading>
-        {syncingThis && (
+        {isSyncing && (
           <div className={styles.syncing} aria-live="polite">
-            Sincronizando perfil...
+            {t('profile.syncing', 'Syncing profile...')}
           </div>
         )}
         <Text className={styles.subtitle}>
-          Tu identidad digital representa tu presencia en la red y tu reputación
-          técnica. Sube un avatar para personalizarla.
+          {t(
+            'profile.description',
+            'Your digital identity represents your online presence and technical reputation. Upload an avatar to personalize it.',
+          )}
         </Text>
         <div className={styles.row}>
           <label className={styles.label} htmlFor="name">
-            {t('profile.name')}
+            {t('profile.name', 'Name')}
           </label>
           <input
             id="name"
@@ -157,20 +128,26 @@ export const ProfileSetupPage = () => {
               })
             }
             className={styles.input}
-            placeholder={t('profile.name')}
+            placeholder={t('profile.name', 'Name')}
+            disabled={isSaving}
           />
         </div>
 
         <div className={styles.row}>
-          <div className={styles.label}>{t('profile.avatar')}</div>
+          <div className={styles.label}>
+            {t('profile.avatar', 'Avatar')}
+          </div>
           <AvatarUploader
             initialAvatar={player?.avatarUrl ?? null}
             initialLevel={player?.level || 1}
             onFileSelected={handleFileSelected}
+            disabled={isSaving}
           />
         </div>
         <div className={styles.row}>
-          <div className={styles.label}>Estadísticas iniciales</div>
+          <div className={styles.label}>
+            {t('profile.initialStats', 'Initial Stats')}
+          </div>
           <div className={styles.statsWrap}>
             <StatDisplay
               stats={
@@ -186,8 +163,17 @@ export const ProfileSetupPage = () => {
           </div>
         </div>
         <div className={styles.actions}>
-          <Button onClick={saveProfile} ariaLabel="Guardar y Continuar">
-            Guardar y Continuar
+          <Button
+            onClick={handleSaveProfile}
+            ariaLabel={t(
+              'profile.saveAndContinue',
+              'Save and Continue',
+            )}
+            disabled={isSaving}
+          >
+            {isSaving
+              ? t('profile.saving', 'Saving...')
+              : t('profile.saveAndContinue', 'Save and Continue')}
           </Button>
         </div>
       </main>

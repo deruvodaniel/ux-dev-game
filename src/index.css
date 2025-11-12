@@ -7,7 +7,6 @@
 
   color-scheme: light dark;
   color: var(--color-text-primary);
-  background-color: var(--color-bg-primary);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -32,6 +31,11 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background-color: var(--color-bg-primary);
+  background-image: url('/img/bg-gral.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: var(--color-text-primary);
   transition:
     background-color 0.3s ease,

@@ -15,12 +15,15 @@ import { PlayerCard } from '@/components/molecules/PlayerCard/PlayerCard';
 import { CardHand } from '@/components/organisms/CardHand/CardHand';
 
 import { useGame } from '@/context/GameContext';
-import { usePlayersContext } from '@/context/PlayersContext';
+import { useModal } from '@/context/ModalContext';
+import { usePlayers } from '@/context/PlayersContext';
 import enemies from '@/data/enemies.json';
 import { useMusicController } from '@/hooks/useMusicContext';
 import { persistProgress } from '@/services/progress';
 
 import styles from './BattlePage.module.css';
+
+// ... (reducer and initial state remain the same)
 
 const initialState = (enemyHealth: number): State => ({
   playerHealth: 100,
@@ -32,8 +35,6 @@ const initialState = (enemyHealth: number): State => ({
   battleLog: [],
 });
 
-// Track total damage dealt in state via closure variable? Instead embed in battleLog parsing or extend state.
-// Simpler: extend State with damageDealt accumulator.
 function reducer(
   state: State & { damageDealt?: number },
   action: Action,
@@ -119,40 +120,109 @@ function reducer(
   }
 }
 
+
 export const BattlePage = () => {
   const { state: gameState, dispatch: gameDispatch } = useGame();
-  const { updatePlayer, syncPlayer, syncing } = usePlayersContext();
+  const { updatePlayer } = usePlayers();
+  const { showModal, hideModal } = useModal();
   const player = gameState.player;
   const location = useLocation();
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  const musicController = useMusicController();
+
+  const [handledEnd, setHandledEnd] = useState(false);
+  const [damageNumbers, setDamageNumbers] = useState<
+    { id: string; value: number; top: number; left: number | string }[]
+  >([]);
+
+  // Determine enemy from URL param or player progress
   const params = new URLSearchParams(location.search);
   const enemyIdParam = params.get('enemy');
   const allEnemies = enemies as unknown as Enemy[];
-  // choose enemy by param, fallback to first not yet defeated or very first
   const defeatedList = gameState.player?.defeatedEnemies || [];
   const fallback = allEnemies.find((e) => !defeatedList.includes(e.id));
   const enemy: Enemy =
     (enemyIdParam && allEnemies.find((e) => e.id === enemyIdParam)) ||
     fallback ||
     allEnemies[0];
+
   const [s, dispatch] = useReducer(reducer, {
     ...initialState(enemy.stats.health),
     damageDealt: 0,
   });
-  const navigate = useNavigate();
-  const { t } = useTranslation();
-  const musicController = useMusicController();
-  const [handledVictory, setHandledVictory] = useState(false);
-  const [damageNumbers, setDamageNumbers] = useState<
-    { id: string; value: number; top: number; left: number | string }[]
-  >([]);
-
-  // La música de batalla se maneja automáticamente por useMusicContext en App.tsx
 
   const handlePlay = (card: string) => {
     dispatch({ type: 'PLAY_CARD', card });
-    // after playing, start enemy turn flow via effect
   };
 
+  // Turn and game-end logic
+  useEffect(() => {
+    if (handledEnd) return;
+
+    if (s.enemyHealth <= 0) {
+      setHandledEnd(true);
+      musicController.playVictoryMusic();
+      const expGained = enemy.difficulty === 'hard' ? 250 : enemy.difficulty === 'medium' ? 120 : 50;
+
+      // Update player state
+      gameDispatch({ type: 'AWARD_EXPERIENCE', payload: { enemyId: enemy.id, amount: expGained } });
+      gameDispatch({ type: 'INCREMENT_STATS', payload: { battles_won: 1, damage_dealt: s.damageDealt || 0 } });
+
+      // Show Victory Modal
+      showModal({
+        title: t('battle.victoryTitle', '¡Victoria!'),
+        content: t('battle.victoryMessage', `Has derrotado a ${enemy.name} y ganado ${expGained} EXP. Tu viaje continúa.`),
+        actions: [
+          {
+            label: t('battle.mapAction', 'Ir al Mapa'),
+            variant: 'primary',
+            onClick: () => {
+              navigate('/progress');
+              hideModal();
+            },
+          },
+          {
+            label: t('battle.dashboardAction', 'Ver Dashboard'),
+            onClick: () => {
+              navigate('/dashboard');
+              hideModal();
+            },
+          },
+        ],
+      });
+
+      // Persist progress after modal is shown
+      setTimeout(() => {
+        if (gameState.player) {
+          persistProgress(gameState.player).then(() => updatePlayer(gameState.player!.id, {}));
+        }
+      }, 100);
+
+    } else if (s.playerHealth <= 0) {
+      setHandledEnd(true);
+      musicController.stopAll();
+
+      // Show Defeat Modal
+      showModal({
+        title: t('battle.defeatTitle', 'Has sido derrotado'),
+        content: t('battle.defeatMessage', 'El código te ha superado esta vez. ¡Pero un desarrollador nunca se rinde!'),
+        actions: [
+          {
+            label: t('battle.retryAction', 'Reintentar'),
+            variant: 'primary',
+            onClick: () => {
+              dispatch({ type: 'RESET' });
+              setHandledEnd(false);
+              hideModal();
+            },
+          },
+        ],
+      });
+    }
+  }, [s.enemyHealth, s.playerHealth, handledEnd, gameDispatch, showModal, hideModal, navigate, t, enemy, s.damageDealt, musicController, updatePlayer, gameState.player]);
+
+  // ... (other effects for enemy turn, regen, damage numbers remain the same)
   // Enemy turn flow and regen handling
   useEffect(() => {
     // handle regen at start of any turn change
@@ -176,87 +246,6 @@ export const BattlePage = () => {
     }
   }, [s.playerTurn, s.enemyStamina]);
 
-  // Victory detection
-  useEffect(() => {
-    if (s.enemyHealth <= 0 && !handledVictory) {
-      setHandledVictory(true);
-      // Reproducir música de victoria
-      musicController.playVictoryMusic();
-      if (enemy.id) {
-        // award experience based on difficulty
-        let amount = 50;
-        switch (enemy.difficulty) {
-          case 'easy':
-            amount = 50;
-            break;
-          case 'medium':
-            amount = 120;
-            break;
-          case 'hard':
-            amount = 250;
-            break;
-          default:
-            amount = 80;
-        }
-        gameDispatch({
-          type: 'AWARD_EXPERIENCE',
-          payload: { enemyId: enemy.id, amount },
-        });
-        gameDispatch({
-          type: 'INCREMENT_STATS',
-          payload: {
-            battles_won: 1,
-            enemies_defeated: 1,
-            damage_dealt: s.damageDealt || 0,
-          },
-        });
-        // Sync ladder/dashboard cache & persist progress inmediatamente (ligero defer para que el reducer aplique)
-        setTimeout(() => {
-          const latest = gameState.player;
-          if (latest) {
-            updatePlayer(latest.id, {
-              level: latest.level,
-              experience: latest.experience,
-              stats: latest.stats,
-              defeatedEnemies: latest.defeatedEnemies,
-            });
-            void persistProgress({ ...latest }).then(() => {
-              void syncPlayer(latest.id);
-            });
-          }
-        }, 20);
-      }
-      // navigate back after short delay
-      setTimeout(() => {
-        const go = window.confirm(
-          '¡Enemigo derrotado! Experiencia obtenida. ¿Ir al mapa de progreso?',
-        );
-        if (go) navigate('/progress');
-      }, 600);
-    }
-
-    if (s.playerHealth <= 0) {
-      // player defeat - visual handled by PlayerCard
-      setTimeout(
-        () => alert('Has sido derrotado... reiniciando batalla.'),
-        600,
-      );
-      setTimeout(() => dispatch({ type: 'RESET' }), 1200);
-    }
-  }, [
-    s.enemyHealth,
-    handledVictory,
-    enemy,
-    navigate,
-    s.playerHealth,
-    s.damageDealt,
-    gameDispatch,
-    gameState.player,
-    updatePlayer,
-    syncPlayer,
-    musicController,
-  ]);
-
   // generate damage numbers when enemy health decreases
   const prevEnemyHp = React.useRef<number>(s.enemyHealth);
   useEffect(() => {
@@ -278,9 +267,10 @@ export const BattlePage = () => {
     if (logRef.current) logRef.current.scrollTop = 0;
   }, [s.battleLog]);
 
+
   return (
     <div className={styles.page}>
-      <div className={styles.arena}>
+       <div className={styles.arena}>
         <div className={styles.turnRow}>
           {/* Could show syncing indicator if wanted */}
           <TurnIndicator turn={s.playerTurn ? 'player' : 'enemy'} />
@@ -294,7 +284,7 @@ export const BattlePage = () => {
             health={s.playerHealth}
             stamina={s.playerStamina}
             isActive={s.playerTurn}
-            syncing={player?.id ? syncing(player.id) : false}
+            syncing={false} // syncing(player.id) : false}
           />
         </div>
 

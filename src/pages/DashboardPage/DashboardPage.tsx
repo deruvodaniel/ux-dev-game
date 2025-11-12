@@ -7,15 +7,14 @@ import { Heading, Text } from '@/components/atoms/Typography';
 import { CharacterList } from '@/components/organisms/CharacterList/CharacterList';
 
 import { useGame } from '@/context/GameContext';
-import { usePlayers } from '@/hooks/usePlayers';
-import { getTopPlayers } from '@/services/players';
+import { useLadderPlayers } from '@/hooks/useLadderPlayers';
 
 import styles from './DashboardPage.module.css';
 
 export const DashboardPage = () => {
   const navigate = useNavigate();
   const { state } = useGame();
-  const { players, loading: playersLoading, refresh } = usePlayers();
+  const { ladder: players, loading: playersLoading, refresh } = useLadderPlayers();
   const { t } = useTranslation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const me = state.player;
@@ -25,7 +24,7 @@ export const DashboardPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const topPlayers = useMemo(() => getTopPlayers(players, 5), [players]);
+  const topPlayers = useMemo(() => players.slice(0, 5), [players]);
 
   const totalDefeated = me?.defeatedEnemies?.length || 0;
   const level = me?.level ?? 1;

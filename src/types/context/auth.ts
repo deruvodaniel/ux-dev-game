@@ -13,7 +13,8 @@ export interface AuthContextValue {
   loading: boolean;
   token: string | null;
   getToken: () => Promise<string | null>;
-  logout: () => Promise<void>;
+  signIn: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 export interface AuthProviderProps {

@@ -1,3 +1,18 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.contentFadeIn {
+  animation: fadeIn 0.8s ease-in-out forwards;
+}
+
 :root {
   --bg: #060712;
   --surface: #0b0f18;
@@ -6,50 +21,53 @@
 }
 
 .page {
+  position: relative;
   min-height: 100vh;
-  background:
-    radial-gradient(
-      ellipse at top left,
-      rgba(96, 165, 250, 0.04),
-      transparent 18%
-    ),
-    linear-gradient(180deg, var(--bg) 0%, #070915 60%);
+  background-image: url('/img/welcome-page-bg.png');
+  background-size: cover;
+  background-position: center;
   color: #e6eef8;
   display: flex;
-  flex-direction: column; /* ensure footer sits at bottom */
-  justify-content: flex-start;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  height: 100%;
-  padding: 3rem 1rem;
+  padding: 1rem;
+  overflow: hidden;
+}
+
+.introVideo {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  z-index: 100; /* High z-index to cover everything */
 }
 
 .container {
   width: 100%;
   gap: 2.4rem;
-  flex: 1; /* allow main to grow */
-}
-
-/* when in selection mode use a single wide column so selection can use full width */
-.containerSingle {
-  grid-template-columns: 1fr;
-  max-width: 1400px;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 1;
 }
 
 /* Hero (first screen) */
 .intro {
-  /* reused for hero */
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.02),
-    rgba(255, 255, 255, 0.01)
-  );
+  background: rgba(11, 15, 24, 0.8);
+  backdrop-filter: blur(10px);
   padding: 2.4rem;
   border-radius: 14px;
-  border: 1px solid rgba(96, 165, 250, 0.04);
-  box-shadow: 0 12px 40px rgba(2, 6, 23, 0.6);
+  border: 1px solid rgba(96, 165, 250, 0.1);
+  box-shadow: 0 12px 40px rgba(2, 6, 23, 0.7);
   display: flex;
   gap: 1.6rem;
   align-items: center;
+  max-width: 1200px;
 }
 
 .hero {
@@ -106,6 +124,7 @@
   margin: 0 0 0.6rem 0;
   font-size: 2.8rem;
   font-weight: 800;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 .mission {
@@ -113,6 +132,7 @@
   color: var(--muted);
   font-size: 1.05rem;
   line-height: 1.45;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.5);
 }
 
 .heroActions {
@@ -121,88 +141,7 @@
   align-items: center;
 }
 
-/* Form / selection screen */
-.formArea {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.02),
-    rgba(255, 255, 255, 0.01)
-  );
-  padding: 1.6rem;
-  border-radius: 12px;
-  border: 1px solid rgba(96, 165, 250, 0.04);
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  height: fit-content;
-}
-
-.selectScreen {
-  padding: 1.2rem 1.6rem;
-}
-.headerRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-}
-.navigationRow {
-  display: flex;
-  gap: 0.8rem;
-  align-items: center;
-}
-.helperText {
-  color: var(--muted);
-  font-size: 0.95rem;
-  margin-top: 0.2rem;
-}
-
-.characterListTitle {
-  color: var(--muted);
-  font-weight: 700;
-  margin-top: 0.2rem;
-}
-
-.characterGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.85rem;
-  margin-top: 0.6rem;
-}
-
-.gridItem {
-  width: 100%;
-}
-
-.ctaRow {
-  margin-top: 1rem;
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* Big CTA styles applied via className on Button */
-.primaryLarge {
-  padding: 1.2rem 2rem !important;
-  font-size: 1.05rem !important;
-  border-radius: 14px !important;
-}
-
-.ghostLarge {
-  padding: 1rem 1.4rem !important;
-  border-radius: 12px !important;
-}
-
-.navButton {
-  padding: 0.8rem 1.1rem !important;
-}
-
 @media (max-width: 980px) {
-  .container {
-    grid-template-columns: 1fr;
-  }
-  .heroRight {
-    width: 100%;
-  }
   .intro {
     flex-direction: column;
     align-items: flex-start;
@@ -213,14 +152,7 @@
   .title {
     font-size: 1.8rem;
   }
-  .characterGrid {
-    grid-template-columns: 1fr;
-  }
   .heroActions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .navigationRow {
     flex-direction: column;
     align-items: stretch;
   }

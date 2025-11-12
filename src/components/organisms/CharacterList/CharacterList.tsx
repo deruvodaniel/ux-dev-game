@@ -6,7 +6,7 @@ import type { Player } from '@/types/player';
 import { CharacterCard } from '@/components/molecules/CharacterCard/CharacterCard';
 
 import { usePlayers } from '@/hooks/usePlayers';
-import { sortPlayers } from '@/services/players';
+import { sortPlayersForLadder } from '@/services/players';
 
 import styles from './CharacterList.module.css';
 
@@ -17,7 +17,7 @@ export const CharacterList = ({ selectedId, onSelect }: CharacterListProps) => {
 
   // sync players into local sorted copy
   useEffect(() => {
-    setLocal(sortPlayers(players));
+    setLocal(sortPlayersForLadder(players));
   }, [players]);
 
   // optional auto refresh if list empty
@@ -33,6 +33,8 @@ export const CharacterList = ({ selectedId, onSelect }: CharacterListProps) => {
         level: p.level,
         stats: p.stats,
         avatarUrl: p.avatarUrl || undefined,
+        last_pr_at: p.last_pr_at,
+        ai_level: p.ai_level,
       })),
     [local],
   );

@@ -1,4 +1,4 @@
-import { supabase } from '@/services/supabase';
+import { firestore } from '@/services/firebase';
 
 declare global {
   interface Window {
@@ -8,40 +8,34 @@ declare global {
 
 import type { Player } from '@/types';
 
-// Persist experience, level and defeated enemies. Safe no-op if no session.
+// Persist experience, level and defeated enemies.
 export async function persistProgress(player: Player): Promise<void> {
   try {
     window.__net?.start?.();
-    if (!supabase) return;
-    // Intentamos igual, aunque no haya sesión; si RLS bloquea, simplemente falla silencioso
-    const payload: Record<string, unknown> = {
+    if (!player.id) return;
+
+    const playerRef = firestore.collection('players').doc(player.id);
+
+    const payload: {
+        experience: number;
+        level: number;
+        defeatedEnemies: string[];
+        stats?: Player['stats'];
+    } = {
       experience: player.experience,
       level: player.level,
-      defeated_enemies: player.defeatedEnemies || [],
-      ...(player.stats ? { stats: player.stats } : {}),
+      defeatedEnemies: player.defeatedEnemies || [],
     };
-    const numericId = /^\d+$/.test(player.id);
-    if (numericId) {
-      const { error } = await supabase
-        .from('players')
-        .update(payload)
-        .eq('id', player.id);
-      if (!error) return;
+
+    if (player.stats) {
+      payload.stats = player.stats;
     }
-    const { error: slugErr } = await supabase
-      .from('players')
-      .update(payload)
-      .eq('slug', player.id);
-    if (!slugErr) return;
-    await supabase
-      .from('players')
-      .upsert(
-        numericId
-          ? { id: player.id, slug: player.id, ...payload }
-          : { slug: player.id, ...payload },
-        { onConflict: 'slug' },
-      );
-  } catch {
+
+    // Using set with merge:true acts as an upsert for the specified fields.
+    await playerRef.set(payload, { merge: true });
+
+  } catch (error) {
+    console.warn('[progress] Failed to persist progress:', error);
     // silent
   } finally {
     window.__net?.end?.();
