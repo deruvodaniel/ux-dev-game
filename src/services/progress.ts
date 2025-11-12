@@ -1,4 +1,6 @@
-import { firestore } from '@/services/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+
+import { db } from '@/services/firebase';
 
 declare global {
   interface Window {
@@ -14,13 +16,13 @@ export async function persistProgress(player: Player): Promise<void> {
     window.__net?.start?.();
     if (!player.id) return;
 
-    const playerRef = firestore.collection('players').doc(player.id);
+    const playerRef = doc(db, 'players', player.id);
 
     const payload: {
-        experience: number;
-        level: number;
-        defeatedEnemies: string[];
-        stats?: Player['stats'];
+      experience: number;
+      level: number;
+      defeatedEnemies: string[];
+      stats?: Player['stats'];
     } = {
       experience: player.experience,
       level: player.level,
@@ -31,9 +33,8 @@ export async function persistProgress(player: Player): Promise<void> {
       payload.stats = player.stats;
     }
 
-    // Using set with merge:true acts as an upsert for the specified fields.
-    await playerRef.set(payload, { merge: true });
-
+    // Using setDoc with merge:true acts as an upsert for the specified fields.
+    await setDoc(playerRef, payload, { merge: true });
   } catch (error) {
     console.warn('[progress] Failed to persist progress:', error);
     // silent
