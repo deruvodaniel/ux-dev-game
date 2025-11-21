@@ -8,10 +8,10 @@ export const usePlayers = () => {
   const ctx = usePlayersContext();
   return {
     players: ctx.players,
-    ladder: ctx.ladder,
+    ladder: ctx.players, // ladder is same as players in new implementation
     loading: ctx.loading,
-    error: ctx.error,
-    refresh: ctx.refresh,
+    error: ctx.error ? ctx.error.message : null,
+    refresh: ctx.refreshLadder, // Map refreshLadder to refresh
     upsert: async (player: Player) => {
       ctx.upsertLocal(player);
       return player;

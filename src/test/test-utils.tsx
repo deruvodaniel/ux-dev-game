@@ -1,26 +1,13 @@
-
 import React, { type ReactElement } from 'react';
 import { render, type RenderOptions } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-import { AuthProvider } from '@/context/AuthContext';
-import { GameProvider } from '@/context/GameContext';
-import { ModalProvider } from '@/context/ModalContext';
-import { PlayersProvider } from '@/context/PlayersContext';
-import { ToastProvider } from '@/context/ToastContext';
+import { AppProviders } from '@/context/AppProviders';
 
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
   return (
     <MemoryRouter>
-      <ToastProvider>
-        <AuthProvider>
-          <PlayersProvider>
-            <GameProvider>
-              <ModalProvider>{children}</ModalProvider>
-            </GameProvider>
-          </PlayersProvider>
-        </AuthProvider>
-      </ToastProvider>
+      <AppProviders>{children}</AppProviders>
     </MemoryRouter>
   );
 };

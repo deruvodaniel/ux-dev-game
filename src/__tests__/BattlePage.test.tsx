@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BattlePage } from '@/pages/BattlePage/BattlePage';
 
+import * as progressService from '@/services/progress';
+
 import '@/__mocks__/firebase';
 import { render } from '@/test/test-utils';
-import * as progressService from '@/services/progress';
 
 // --- Mocks Setup ---
 

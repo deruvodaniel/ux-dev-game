@@ -2,23 +2,25 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { Player } from '@/types/player';
+
 import { ProfileSetupPage } from '@/pages/ProfileSetupPage/ProfileSetupPage';
+
+import * as avatarService from '@/services/avatars';
+import * as playerService from '@/services/players';
 
 import '@/__mocks__/firebase';
 import { render } from '@/test/test-utils';
-import * as avatarService from '@/services/avatars';
-import * as playerService from '@/services/players';
 
 // --- Mocks Setup ---
 
 vi.mock('@/services/avatars');
 vi.mock('@/services/players');
 
-(URL as unknown as { createObjectURL?: (f: File) => string }).createObjectURL = vi
-  .fn()
-  .mockReturnValue('blob:preview');
+(URL as unknown as { createObjectURL?: (f: File) => string }).createObjectURL =
+  vi.fn().mockReturnValue('blob:preview');
 
-vi.mock('@/context/AuthContext', async importOriginal => {
+vi.mock('@/context/AuthContext', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...(actual as object),
@@ -47,9 +49,11 @@ describe('ProfileSetupPage', () => {
     seedPlayer();
     vi.clearAllMocks();
 
-    vi.mocked(avatarService.uploadAvatar).mockResolvedValue('user-id/avatar.png');
+    vi.mocked(avatarService.uploadAvatar).mockResolvedValue(
+      'user-id/avatar.png',
+    );
     vi.mocked(avatarService.publicAvatarUrlFor).mockReturnValue(
-      'https://example.com/user-id/avatar.png'
+      'https://example.com/user-id/avatar.png',
     );
     vi.mocked(playerService.updatePlayerAvatar).mockResolvedValue(undefined);
     vi.mocked(playerService.updatePlayerProfile).mockResolvedValue(undefined);
@@ -58,11 +62,11 @@ describe('ProfileSetupPage', () => {
       id: 'user-id',
       level: 1,
       experience: 0,
-    } as any);
+    } as Partial<Player>);
     vi.mocked(playerService.fetchPlayerById).mockResolvedValue({
       id: 'user-id',
       name: 'Synced Name',
-    } as any);
+    } as Partial<Player> as Player);
   });
 
   it('updates name, uploads avatar, and navigates', async () => {
@@ -70,7 +74,7 @@ describe('ProfileSetupPage', () => {
       <Routes>
         <Route path="/" element={<ProfileSetupPage />} />
         <Route path="/ladder" element={<div>Ladder Page</div>} />
-      </Routes>
+      </Routes>,
     );
 
     const nameInput = await screen.findByDisplayValue('Old Name');
@@ -80,7 +84,9 @@ describe('ProfileSetupPage', () => {
     const fileInput = document.getElementById('avatarFile') as HTMLInputElement;
     fireEvent.change(fileInput, { target: { files: [file] } });
 
-    const saveBtn = await screen.findByRole('button', { name: /Save and Continue/i });
+    const saveBtn = await screen.findByRole('button', {
+      name: /Save and Continue/i,
+    });
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
@@ -89,7 +95,7 @@ describe('ProfileSetupPage', () => {
 
     await waitFor(() => {
       expect(playerService.updatePlayerProfile).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'New Name' })
+        expect.objectContaining({ name: 'New Name' }),
       );
     });
 

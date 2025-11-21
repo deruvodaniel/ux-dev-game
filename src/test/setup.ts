@@ -1,7 +1,7 @@
-import '@testing-library/jest-dom';
-
 import { initializeApp } from 'firebase/app';
 import { vi } from 'vitest';
+
+import '@testing-library/jest-dom';
 
 // Initialize a mock Firebase app before all tests
 const firebaseConfig = {
@@ -19,7 +19,9 @@ initializeApp(firebaseConfig);
 
 // Mock Firestore
 const setDoc = vi.fn(() => Promise.resolve());
-const getDoc = vi.fn(() => Promise.resolve({ exists: () => true, data: () => ({}) }));
+const getDoc = vi.fn(() =>
+  Promise.resolve({ exists: () => true, data: () => ({}) }),
+);
 const getDocs = vi.fn(() => Promise.resolve({ docs: [] }));
 const collection = vi.fn(() => ({}));
 const doc = vi.fn(() => ({}));
@@ -56,5 +58,5 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (str: string) => str,
   }),
-  Trans: ({ children }: { children: any }) => children,
+  Trans: ({ children }: { children: React.ReactNode }) => children,
 }));
