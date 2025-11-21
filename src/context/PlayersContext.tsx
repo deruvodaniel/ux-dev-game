@@ -26,9 +26,10 @@ interface PlayersState {
 }
 
 interface PlayersContextType extends PlayersState {
-  refreshLadder: () => Promise<void>;
+  refreshLadder: (force?: boolean) => Promise<void>;
   updatePlayer: (id: string, patch: Partial<Player>) => void;
   getPlayerById: (id: PlayerId) => PlayerWithId | undefined;
+  upsertLocal: (player: Player) => void;
 }
 
 const PlayersContext = createContext<PlayersContextType | undefined>(undefined);
@@ -109,14 +110,29 @@ export const PlayersProvider = ({
     [state.players],
   );
 
+  const upsertLocal = useCallback((player: Player) => {
+    setState((s) => {
+      const idx = s.players.findIndex((p) => p.id === player.id);
+      if (idx === -1) {
+        // Add new player
+        return { ...s, players: [...s.players, player] };
+      }
+      // Update existing player
+      const newPlayers = [...s.players];
+      newPlayers[idx] = player;
+      return { ...s, players: newPlayers };
+    });
+  }, []);
+
   const value = useMemo(
     () => ({
       ...state,
       refreshLadder,
       updatePlayer,
       getPlayerById,
+      upsertLocal,
     }),
-    [state, refreshLadder, updatePlayer, getPlayerById],
+    [state, refreshLadder, updatePlayer, getPlayerById, upsertLocal],
   );
 
   return (

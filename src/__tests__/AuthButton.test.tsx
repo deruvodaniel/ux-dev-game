@@ -1,21 +1,26 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import type { User } from 'firebase/auth';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AuthButton } from '@/components/organisms/AuthButton/AuthButton';
-import { render } from '@/test/test-utils';
+
+import * as AuthContext from '@/context/AuthContext';
 
 import '@/__mocks__/firebase'; // Import the global mock
-import * as AuthContext from '@/context/AuthContext';
+import { render } from '@/test/test-utils';
 
 // --- Mocks Setup ---
 
 const logoutMock = vi.fn();
 vi.spyOn(AuthContext, 'useAuth').mockReturnValue({
-  isAuthenticated: true,
-  user: { name: 'Tester', picture: 'http://pic.com/pic.jpg', id: 'test-user' },
-  logout: logoutMock,
-  loginWithRedirect: vi.fn(),
-} as any);
+  signOut: logoutMock,
+  signIn: vi.fn(),
+  user: {
+    displayName: 'Tester',
+    photoURL: 'http://pic.com/pic.jpg',
+    uid: 'test-user',
+  } as User,
+});
 
 // --- Test Suite ---
 

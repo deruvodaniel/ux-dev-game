@@ -1,9 +1,10 @@
+import { getDocs } from 'firebase/firestore';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Player } from '@/types/player';
 
 import { fetchPlayers, sortPlayersForLadder } from '@/services/players';
-import { getDocs } from 'firebase/firestore';
+
 import '@/__mocks__/firebase'; // Import the global mock
 
 // --- Test Suite ---
@@ -14,7 +15,7 @@ describe('fetchPlayers + ladder mapping', () => {
   });
 
   it('returns empty array when firestore call returns no players', async () => {
-    (getDocs as vi.Mock).mockResolvedValue({ docs: [], forEach: (cb: any) => {} });
+    (getDocs as vi.Mock).mockResolvedValue({ docs: [], forEach: () => {} });
 
     const players = await fetchPlayers();
     expect(players).toEqual([]);
@@ -22,12 +23,20 @@ describe('fetchPlayers + ladder mapping', () => {
 
   it('returns a list of players from firestore, including the ID', async () => {
     const mockData = [
-      { id: 'p1', data: () => ({ name: 'Player One', level: 10, experience: 1000 }) },
-      { id: 'p2', data: () => ({ name: 'Player Two', level: 8, experience: 800 }) },
+      {
+        id: 'p1',
+        data: () => ({ name: 'Player One', level: 10, experience: 1000 }),
+      },
+      {
+        id: 'p2',
+        data: () => ({ name: 'Player Two', level: 8, experience: 800 }),
+      },
     ];
     const mockSnapshot = {
       docs: mockData,
-      forEach: (callback: (d: any) => void) => mockData.forEach(callback),
+      forEach: (
+        callback: (d: { id: string; data: () => Partial<Player> }) => void,
+      ) => mockData.forEach(callback),
     };
     (getDocs as vi.Mock).mockResolvedValue(mockSnapshot);
 
@@ -43,6 +52,6 @@ describe('fetchPlayers + ladder mapping', () => {
       { id: '2', name: 'B', level: 3, experience: 5 },
       { id: '3', name: 'C', level: 3, experience: 20 },
     ] as Player[]);
-    expect(ordered.map(p => p.id)).toEqual(['3', '2', '1']);
+    expect(ordered.map((p) => p.id)).toEqual(['3', '2', '1']);
   });
 });

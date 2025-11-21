@@ -1,6 +1,6 @@
-import type { Player } from '@/types';
-
 import { collection, doc, getDoc, getDocs, getFirestore, setDoc } from 'firebase/firestore';
+
+import type { Player } from '@/types';
 
 const db = getFirestore();
 const playersCollectionRef = collection(db, 'players');
